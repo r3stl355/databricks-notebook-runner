@@ -1,5 +1,5 @@
 {
-  "name": "dbnotebook",
+  "name": "databricks-notebook",
   "displayName": "Databricks Notebook",
   "description": "Plugin to run Databricks notebooks in VSCode",
   "version": "0.0.1",
@@ -12,12 +12,6 @@
   "activationEvents": ["onNotebook:databricks-notebook"],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "dbNotebook.runAll",
-        "title": "Databricks Notebook: Run All"
-      }
-    ],
     "notebooks": [
       {
           "id": "databricks-notebook",
@@ -32,12 +26,12 @@
     ],
     "configuration": {
         "type": "object",
-        "title": "Databricks Notebook",
+        "title": "DatabricksNotebook",
         "properties": {
-            "databricksNotebook.environmentActivationCommand": {
+            "dbNotebook.environmentActivationCommand": {
                 "type": "string",
                 "description": "Custom environment activation command",
-                "default": "workon dbconnect_env"
+                "default": "export DATABRICKS_CONFIG_PROFILE=db-notebook && workon dbconnect_env"
             }
         }
     }
