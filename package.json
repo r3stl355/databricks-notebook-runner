@@ -3,6 +3,8 @@
   "displayName": "Databricks Notebook",
   "description": "Plugin to run Databricks notebooks in VSCode",
   "version": "0.0.1",
+  "publisher": "r3stl355",
+  "repository": "https://github.com/r3stl355/db_notebook.git",
   "engines": {
     "vscode": "^1.78.0"
   },
@@ -19,7 +21,7 @@
           "displayName": "Databricks Notebook",
           "selector": [
               {
-                  "filenamePattern": "*.databricks"
+                  "filenamePattern": "*.py"
               }
           ]
       }
@@ -30,7 +32,7 @@
         "properties": {
             "dbNotebook.environmentActivationCommand": {
                 "type": "string",
-                "description": "Custom environment activation command",
+                "description": "Custom Python environment activation command (must have Databricks Connect installed)",
                 "default": "export DATABRICKS_CONFIG_PROFILE=db-notebook && workon dbconnect_env"
             }
         }

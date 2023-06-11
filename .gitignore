@@ -1,7 +1,3 @@
-# Mlflow
-mlruns/
-mlartifacts/
-outputs/
 
 # Mac
 .DS_Store
@@ -15,6 +11,7 @@ __pycache__
 *.so
 
 # Distribution / packaging
+*.vsix
 .Python
 build/
 develop-eggs/
@@ -55,9 +52,6 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Sphinx documentation
-docs/_build/
-
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -82,24 +76,8 @@ venv.bak/
 *.iml
 *~
 
-# mkdocs documentation
-/site
-
 # mypy
 .mypy_cache/
-
-# java targets
-target/
-
-# R notebooks
-.Rproj.user
-example/tutorial/R/*.nb.html
-
-# travis_wait command logs
-travis_wait*.log
-
-# Pytorch logs
-lightning_logs
 
 wip
 samples

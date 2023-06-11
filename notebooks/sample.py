@@ -8,8 +8,7 @@ print("A sample Databricks Notebook")
 
 # COMMAND ----------
 
-# MAGIC %run
-# MAGIC ./setup.py
+# MAGIC %run ./setup
 
 # COMMAND ----------
 
@@ -24,4 +23,9 @@ df.show(5)
 
 # MAGIC %sql
 # MAGIC SELECT *
-# MAGIC FROM samples.nyctaxi.trips 
+# MAGIC FROM samples.nyctaxi.trips
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 

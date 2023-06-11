@@ -4,6 +4,7 @@ import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { randomBytes } from 'crypto';
 import { Terminal } from 'vscode';
+import * as path from 'path';
 
 const notebookHeader = "# Databricks notebook source";
 
@@ -12,6 +13,8 @@ const cellSeparator = "# COMMAND ----------";
 const magicHeader = "# MAGIC ";
 const mdMagicHeader = `${magicHeader}%md`;
 const sqlMagicHeader = `${magicHeader}%sql`;
+const runMagicHeader = `${magicHeader}%run`;
+const runLanguage = "RUN";
 
 const logDir = "/tmp/db-notebook";
 const cmdOutput = `${logDir}/cell-command.out`;
@@ -19,8 +22,11 @@ const cmdOutput = `${logDir}/cell-command.out`;
 const terminalName = 'Databricks Notebook';
 
 const setLogger = `
+from importlib import reload
 import sys
 import os
+
+sys.path.append("${logDir}");
 
 os.makedirs("${logDir}", exist_ok=True)
 
@@ -52,7 +58,6 @@ except e:
 
 sys.stdout = logger
 sys.stderr = logger
-
 
 `;
 
@@ -156,22 +161,37 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
 
       kind = vscode.NotebookCellKind.Code;
       language = "SQL";
+    } else if (contents.startsWith(runMagicHeader)) {
+      // Must be a single-line but not enforcing here
+      v = contents
+        .split(/\n/g)
+        .map(
+          v => v.replace(magicHeader, "")
+        )
+        .join("\n");
+
+      kind = vscode.NotebookCellKind.Code;
+      language = runLanguage;
     }
     return {"kind": kind, "value": v, "language": language};
   }
 
   private serializeCell(cell: vscode.NotebookCellData): string {
     if (cell.kind === vscode.NotebookCellKind.Markup) {
-      let split = cell.value.split(/\n/gm);
+      let split = cell.value.trim().split(/\n/gm);
       return `${mdMagicHeader}\n${magicHeader}${split.join(`\n${magicHeader}`)}`;
     }
     else {
       if (cell.languageId === "SQL") {
-        let split = cell.value.split(/\n/gm);
+        let split = cell.value.trim().split(/\n/gm);
         return `${sqlMagicHeader}\n${magicHeader}${split.join(`\n${magicHeader}`)}`;
+      } else if (cell.languageId === runLanguage) {
+        // Technically, this shoud have only one line but not enforcing here
+        let split = cell.value.trim().split(/\n/gm);
+        return `${magicHeader}${split.join(`\n${magicHeader}`)}`;
       }
       else {
-        return cell.value;
+        return cell.value.trim();
       }
     }
   }
@@ -181,7 +201,7 @@ class Controller {
   readonly controllerId = 'databricks-notebook-controller-id';
   readonly notebookType = 'databricks-notebook';
   readonly label = 'Databricks Notebook';
-  readonly supportedLanguages = ['python', 'SQL'];
+  readonly supportedLanguages = ["python", "SQL", runLanguage];
 
   private readonly _controller: vscode.NotebookController;
   private _executionOrder = 0;
@@ -216,7 +236,7 @@ class Controller {
     execution.executionOrder = ++this._executionOrder;
     execution.start(Date.now());
 
-    let command = execution.cell.document.getText();
+    let command = execution.cell.document.getText().trim();
     let language = execution.cell.document.languageId;
     let cmdId = randomBytes(16).toString('hex');
     let flagFile = `${logDir}/flag-${cmdId}}`;
@@ -225,6 +245,27 @@ class Controller {
 
     if (language === "SQL") {
       command = `spark.sql("${command.replace(/\n/gm, " ")}").show()`;
+    } else if (language === runLanguage) {
+      let notebookPath = vscode.window.activeTextEditor?.document.uri.path!;
+      if (isString(notebookPath)) {
+        let cmd = command.replace("%run ", "").trim();
+        let dir = path.dirname(notebookPath);
+        let scriptPath = path.join(path.dirname(notebookPath), cmd);
+        let scriptDir = path.dirname(scriptPath);
+        let moduleName = path.basename(scriptPath);
+        command = `if "${scriptDir}" not in sys.path:\n  sys.path.append("${scriptDir}")\n\n`;
+        command += `try: reload(${moduleName})\nexcept: import ${moduleName}\n\n`;
+        command += `from ${moduleName} import *\n`;
+
+
+        // command = `spec = importlib.util.spec_from_file_location('run.cell', '${scriptPath}')\n`;
+        // command += "run_cell_module = importlib.util.module_from_spec(spec)\n";
+        // command += "sys.modules['run.cell'] = run_cell_module\n";
+        // command += "spec.loader.exec_module(run_cell_module)\n";
+        // command += "from ${} import *\n";
+      } else {
+        vscode.window.showWarningMessage("Cannot determine the noteboook source path");
+      }
     }
     runCommand(command, flagFile, marker);
 
@@ -241,6 +282,13 @@ class Controller {
       let output = new TextDecoder().decode(await readFile(cmdOutput));
       if (output.match(marker)) {
         res = output.split(marker)[1].split(markerStart)[0];
+        if (language === runLanguage) {
+          // Filter out the response from reload
+          res = res
+            .split(/\n/gm)
+            .filter(v => !(v.startsWith("<module ") && v.endsWith(">")))
+            .join("\n");
+        }
       }
       if (res.length === 0) {
         res = "OK";
