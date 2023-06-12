@@ -16,6 +16,14 @@ print(rows)
 
 # COMMAND ----------
 
+# MAGIC %sh
+# MAGIC
+# MAGIC pwd 
+# MAGIC ls -la
+# MAGIC python --version
+
+# COMMAND ----------
+
 df = spark.read.table("samples.nyctaxi.trips")
 df.show(5)
 
@@ -28,4 +36,3 @@ df.show(5)
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC 
