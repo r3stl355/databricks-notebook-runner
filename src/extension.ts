@@ -10,10 +10,11 @@ const notebookHeader = "# Databricks notebook source";
 
 const cellSeparator = "# COMMAND ----------";
 
-const magicHeader = "# MAGIC ";
-const mdMagicHeader = `${magicHeader}%md`;
-const sqlMagicHeader = `${magicHeader}%sql`;
-const runMagicHeader = `${magicHeader}%run`;
+const magicHeader = "# MAGIC";
+const mdMagicHeader = `${magicHeader} %md`;
+const sqlMagicHeader = `${magicHeader} %sql`;
+const runMagicHeader = `${magicHeader} %run`;
+const shMagicHeader = `${magicHeader} %sh`;
 const runLanguage = "RUN";
 
 const logDir = "/tmp/db-notebook";
@@ -25,6 +26,9 @@ const setLogger = `
 from importlib import reload
 import sys
 import os
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.compute import Language 
+
 
 sys.path.append("${logDir}");
 
@@ -58,6 +62,9 @@ except e:
 
 sys.stdout = logger
 sys.stderr = logger
+
+w = WorkspaceClient()
+lang = Language.python
 
 `;
 
@@ -155,7 +162,7 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
         .split(/\n/g)
         .slice(1)
         .map(
-          v => v.replace(magicHeader, "")
+          v => v.replace(magicHeader, "").trim()
         )
         .join("\n");
 
@@ -166,13 +173,24 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
       v = contents
         .split(/\n/g)
         .map(
-          v => v.replace(magicHeader, "")
+          v => v.replace(magicHeader, "").trim()
         )
         .join("\n");
 
       kind = vscode.NotebookCellKind.Code;
       language = runLanguage;
+    } else if (contents.startsWith(shMagicHeader)) {
+      v = contents
+        .split(/\n/g)
+        .map(
+          v => v.replace(magicHeader, "").trim()
+        )
+        .join("\n");
+
+      kind = vscode.NotebookCellKind.Code;
+      language = "SHELL";
     }
+
     return {"kind": kind, "value": v, "language": language};
   }
 
@@ -188,7 +206,14 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
       } else if (cell.languageId === runLanguage) {
         // Technically, this shoud have only one line but not enforcing here
         let split = cell.value.trim().split(/\n/gm);
-        return `${magicHeader}${split.join(`\n${magicHeader}`)}`;
+        return `${magicHeader} ${split.join(`\n${magicHeader}`)}`;
+      } else if (cell.languageId === "SHELL") {
+        let split = cell.value.trim()
+                      .split(/\n/gm)
+                      .map(
+                        v => `${magicHeader}${v.length > 0 ?  ` ${v}`: ""}`
+                      );
+        return split.join("\n");
       }
       else {
         return cell.value.trim();
@@ -201,7 +226,7 @@ class Controller {
   readonly controllerId = 'databricks-notebook-controller-id';
   readonly notebookType = 'databricks-notebook';
   readonly label = 'Databricks Notebook';
-  readonly supportedLanguages = ["python", "SQL", runLanguage];
+  readonly supportedLanguages = ["python", "SQL", "SHELL", runLanguage];
 
   private readonly _controller: vscode.NotebookController;
   private _executionOrder = 0;
@@ -232,11 +257,16 @@ class Controller {
   }
 
   private async _doExecution(cell: vscode.NotebookCell): Promise<void> {
+
+    let command = cell.document.getText().trim();
+    if (command.length === 0) {
+      return;
+    }
+
     const execution = this._controller.createNotebookCellExecution(cell);
     execution.executionOrder = ++this._executionOrder;
     execution.start(Date.now());
 
-    let command = execution.cell.document.getText().trim();
     let language = execution.cell.document.languageId;
     let cmdId = randomBytes(16).toString('hex');
     let flagFile = `${logDir}/flag-${cmdId}}`;
@@ -266,6 +296,14 @@ class Controller {
       } else {
         vscode.window.showWarningMessage("Cannot determine the noteboook source path");
       }
+    } else if (language === "SHELL") {
+      let cmd = command.replace("%sh", "").trim().split(/\n/mg);
+      command = "w.clusters.ensure_cluster_is_running(w.config.cluster_id)\n";
+      command += `c = w.command_execution\n`;
+      command += `c_id = c.create_and_wait(cluster_id=w.config.cluster_id, language=lang).id\n`;
+      command += cmd.map(
+          v => `print(c.execute_and_wait(context_id=c_id, cluster_id=w.config.cluster_id, language=lang, command="${v}").results.data)`
+        ).join("\n");
     }
     runCommand(command, flagFile, marker);
 

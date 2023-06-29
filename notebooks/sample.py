@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC ### A sample Databricks notebook
+# MAGIC### A sample Databricks notebook
 
 # COMMAND ----------
 
@@ -17,10 +17,13 @@ print(rows)
 # COMMAND ----------
 
 # MAGIC %sh
+
+# COMMAND ----------
+
+# MAGIC %sh
 # MAGIC
-# MAGIC pwd 
+# MAGIC pwd
 # MAGIC ls -la
-# MAGIC python --version
 
 # COMMAND ----------
 
@@ -30,9 +33,10 @@ df.show(5)
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC SELECT *
-# MAGIC FROM samples.nyctaxi.trips
+# MAGICSELECT *
+# MAGICFROM samples.nyctaxi.trips
 
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC
