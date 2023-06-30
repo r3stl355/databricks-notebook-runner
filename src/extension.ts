@@ -24,13 +24,11 @@ const terminalName = 'Databricks Notebook';
 
 const setLogger = `
 from importlib import reload
-import sys
-import os
+import os, sys
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.compute import Language 
 
-
-sys.path.append("${logDir}");
+sys.path.append("${logDir}")
 
 os.makedirs("${logDir}", exist_ok=True)
 
@@ -300,10 +298,14 @@ class Controller {
       let cmd = command.replace("%sh", "").trim().split(/\n/mg);
       command = "w.clusters.ensure_cluster_is_running(w.config.cluster_id)\n";
       command += `c = w.command_execution\n`;
-      command += `c_id = c.create_and_wait(cluster_id=w.config.cluster_id, language=lang).id\n`;
-      command += cmd.map(
+      command += `c_id = c.create_and_wait(cluster_id=w.config.cluster_id, language=lang).id\n`; 
+      let subCmd = cmd.map(
+          v => `import subprocess\\nsubprocess.run(['${v.trim().replace(" ", "','")}'], capture_output=True).stdout.decode()`
+      );
+      command += subCmd.map(
           v => `print(c.execute_and_wait(context_id=c_id, cluster_id=w.config.cluster_id, language=lang, command="${v}").results.data)`
-        ).join("\n");
+        ).join("\n");  
+        
     }
     runCommand(command, flagFile, marker);
 

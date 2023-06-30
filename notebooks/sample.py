@@ -17,13 +17,10 @@ print(rows)
 # COMMAND ----------
 
 # MAGIC %sh
-
-# COMMAND ----------
-
-# MAGIC %sh
 # MAGIC
 # MAGIC pwd
 # MAGIC ls -la
+# MAGIC python --version
 
 # COMMAND ----------
 
