@@ -152,17 +152,17 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
         .map(
           v => v.replace(magicHeader, "")
         )
-        .join("\n");
+        .join("\n").trim();
       kind = vscode.NotebookCellKind.Markup;
       language = "markdown";
     } else if (contents.startsWith(sqlMagicHeader)) {
       v = contents
         .split(/\n/g)
-        .slice(1)
+        // .slice(1)
         .map(
           v => v.replace(magicHeader, "").trim()
         )
-        .join("\n");
+        .join("\n").trim();
 
       kind = vscode.NotebookCellKind.Code;
       language = "SQL";
@@ -173,7 +173,7 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
         .map(
           v => v.replace(magicHeader, "").trim()
         )
-        .join("\n");
+        .join("\n").trim();
 
       kind = vscode.NotebookCellKind.Code;
       language = runLanguage;
@@ -183,10 +183,17 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
         .map(
           v => v.replace(magicHeader, "").trim()
         )
-        .join("\n");
+        .join("\n").trim();
 
       kind = vscode.NotebookCellKind.Code;
       language = "SHELL";
+    } else if (contents.startsWith(magicHeader)) {
+      v = contents
+        .split(/\n/g)
+        .map(
+          v => v.replace(magicHeader, "").trim()
+        )
+        .join("\n").trim();
     }
 
     return {"kind": kind, "value": v, "language": language};
@@ -195,12 +202,12 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
   private serializeCell(cell: vscode.NotebookCellData): string {
     if (cell.kind === vscode.NotebookCellKind.Markup) {
       let split = cell.value.trim().split(/\n/gm);
-      return `${mdMagicHeader}\n${magicHeader}${split.join(`\n${magicHeader}`)}`;
+      return `${mdMagicHeader}\n${magicHeader} ${split.join(`\n${magicHeader}`)}`;
     }
     else {
       if (cell.languageId === "SQL") {
         let split = cell.value.trim().split(/\n/gm);
-        return `${sqlMagicHeader}\n${magicHeader}${split.join(`\n${magicHeader}`)}`;
+        return `${magicHeader} ${split.join(`\n${magicHeader}`)}`;
       } else if (cell.languageId === runLanguage) {
         // Technically, this shoud have only one line but not enforcing here
         let split = cell.value.trim().split(/\n/gm);
@@ -257,7 +264,7 @@ class Controller {
   private async _doExecution(cell: vscode.NotebookCell): Promise<void> {
 
     let command = cell.document.getText().trim();
-    if (command.length === 0) {
+    if (command.length === 0) { // || command.replace("%sql", "").trim().length === 0) {
       return;
     }
 
@@ -272,7 +279,10 @@ class Controller {
     let marker = `${markerStart}${cmdId} -->}`;
 
     if (language === "SQL") {
-      command = `spark.sql("${command.replace(/\n/gm, " ")}").show()`;
+      command = command.replace("%sql", "").trim();
+      if (command.length > 0) {
+        command = `spark.sql("${command.replace(/\n/gm, " ")}").show()`;
+      }
     } else if (language === runLanguage) {
       let notebookPath = vscode.window.activeTextEditor?.document.uri.path!;
       if (isString(notebookPath)) {
@@ -298,7 +308,7 @@ class Controller {
       let cmd = command.replace("%sh", "").trim().split(/\n/mg);
       command = "w.clusters.ensure_cluster_is_running(w.config.cluster_id)\n";
       command += `c = w.command_execution\n`;
-      command += `c_id = c.create_and_wait(cluster_id=w.config.cluster_id, language=lang).id\n`; 
+      command += `c_id = c.create_and_wait(cluster_id=w.config.cluster_id, language=lang).id\n`;
       let subCmd = cmd.map(
           v => `import subprocess\\nsubprocess.run(['${v.trim().replace(" ", "','")}'], capture_output=True).stdout.decode()`
       );
