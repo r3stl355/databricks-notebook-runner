@@ -11,32 +11,41 @@
   "categories": [
     "Notebooks"
   ],
-  "activationEvents": ["onNotebook:databricks-notebook"],
+  "activationEvents": [
+    "onNotebook:databricks-notebook"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "notebooks": [
       {
-          "id": "databricks-notebook",
-          "type": "databricks-notebook",
-          "displayName": "Databricks Notebook",
-          "selector": [
-              {
-                  "filenamePattern": "*.py"
-              }
-          ]
+        "id": "databricks-notebook",
+        "type": "databricks-notebook",
+        "displayName": "Databricks Notebook",
+        "selector": [
+          {
+            "filenamePattern": "*.py"
+          }
+        ]
       }
     ],
-    "configuration": {
+    "configuration": [
+      {
         "type": "object",
-        "title": "DatabricksNotebook",
+        "title": "DatabricksNotebookRunner",
         "properties": {
-            "dbNotebook.environmentActivationCommand": {
-                "type": "string",
-                "description": "Custom Python environment activation command (must have Databricks Connect installed)",
-                "default": "export DATABRICKS_CONFIG_PROFILE=db-notebook && workon dbconnect_env"
-            }
+          "dbNotebook.pythonEnvActivationCommand": {
+            "type": "string",
+            "description": "Custom Python environment activation command (must have Databricks Connect installed)",
+            "default": "export DATABRICKS_CONFIG_PROFILE=db-notebook && workon dbconnect_env"
+          },
+          "dbNotebook.showPythonRepl": {
+            "type": "boolean",
+            "description": "Show/hide the Python REPL",
+            "default": true
+          }
         }
-    }
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

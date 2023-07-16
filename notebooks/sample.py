@@ -45,6 +45,9 @@ df.show(5)
 
 df = spark.createDataFrame(rows)
 
+# MAGIC %sql
+# MAGIC DROP TABLE hive_metastore.default.bubu;
+
 # COMMAND ----------
 
 df.write.mode("overwrite").saveAsTable("hive_metastore.default.bubu")
@@ -52,5 +55,4 @@ df.write.mode("overwrite").saveAsTable("hive_metastore.default.bubu")
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC
-# MAGICSELECT * FROM hive_metastore.default.bubu
+# MAGIC SELECT * FROM hive_metastore.default.bubu
