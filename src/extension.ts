@@ -8,33 +8,148 @@ import * as path from "path";
 import { tmpdir } from "os";
 
 const notebookHeader = "# Databricks notebook source";
-const cellSeparator = "\n# COMMAND ----------\n";
-const cellSeparatorRegex = "\n# COMMAND -*[^\n]\n";
+const cellSeparator = "\n\n# COMMAND ----------\n\n";
+const cellSeparatorRegex = "\n\n# COMMAND -*[^\n]\n\n";
+
+enum Language {
+  unknown = "plaintext",
+  python = "python",
+  sql = "sql",
+  run = "run",
+  sh = "shellscript",
+  remoteSh = "remote-sh",
+  md = "markdown",
+}
+// const pythonLanguage = "python";
+// const sqlLanguage = "sql";
+// const runLanguage = "run";
+// const shLanguage = "shellscript";
+// const remoteShLanguage = "remote-sh";
+// // const mdLanguage = "markdown";
+// // const undefinedLanguage = "plaintext";
+
+// const undefinedKind = vscode.NotebookCellKind.Code;
+
+enum Kind {
+  markdown = vscode.NotebookCellKind.Markup,
+  code = vscode.NotebookCellKind.Code,
+  unknown = -1,
+}
+
+enum Magic {
+  invalid = "invalid",
+  none = "",
+  md = "md",
+  sh = "sh",
+  run = "run",
+  sql = "sql",
+}
+
+interface RawNotebookCell {
+  magic: Magic;
+  language: Language;
+  value: string;
+  kind: Kind;
+}
 
 const magicHeader = "# MAGIC";
-const mdMagicHeader = `${magicHeader} %md`;
-const sqlMagicHeader = `${magicHeader} %sql`;
-const runMagicHeader = `${magicHeader} %run`;
-const shMagicHeader = `${magicHeader} %sh`;
+const mdMagicHeader = `${magicHeader} %${Magic.md}`;
 
-const pythonLanguage = "python";
-const sqlLanguage = "sql";
-const runLanguage = "Run";
-const shellLanguage = "Shell";
-const mdLanguage = "markdown";
+// const magicMap = new Map([
+//   [Magic.md, { language: Language.md, kind: vscode.NotebookCellKind.Markup }],
+//   [Magic.sql, { language: Language.sql, kind: vscode.NotebookCellKind.Code }],
+//   [Magic.run, { language: Language.run, kind: vscode.NotebookCellKind.Code }],
+//   [Magic.sh, { language: Language.sh, kind: vscode.NotebookCellKind.Code }],
+//   [
+//     Magic.none,
+//     { language: Language.python, kind: vscode.NotebookCellKind.Code },
+//   ],
+//   [
+//     Magic.invalid,
+//     { language: Language.unknown, kind: vscode.NotebookCellKind.Code },
+//   ],
+// ]);
+
+const magicMap = new Map([
+  [Magic.md, { language: Language.md, kind: Kind.markdown }],
+  [Magic.sql, { language: Language.sql, kind: Kind.code }],
+  [Magic.run, { language: Language.run, kind: Kind.code }],
+  [Magic.sh, { language: Language.sh, kind: Kind.code }],
+  [Magic.none, { language: Language.python, kind: Kind.code }],
+  [Magic.invalid, { language: Language.unknown, kind: Kind.code }],
+]);
+
+function enumFromString<T>(
+  enm: { [s: string]: T },
+  value: string
+): T | undefined {
+  return (Object.values(enm) as unknown as string[]).includes(value)
+    ? (value as unknown as T)
+    : undefined;
+}
+
+const pythonRowNotebookCell = (cellText: string) => {
+  return {
+    magic: Magic.none,
+    kind: Kind.code,
+    value: cellText,
+    language: Language.python,
+  };
+};
+
+function parseCellText(
+  cellText: string,
+  canHaveMagicHeader: boolean = true
+): RawNotebookCell {
+  const trimmed = cellText.trimStart();
+  if (
+    (canHaveMagicHeader && !trimmed.startsWith(magicHeader)) ||
+    (!canHaveMagicHeader && !trimmed.startsWith("%"))
+  ) {
+    return pythonRowNotebookCell(cellText);
+  }
+  const headerRegStr = canHaveMagicHeader ? magicHeader + " " : "";
+  const regStr = `^${headerRegStr}\%(?<magic>[^\\s\\n]*)`;
+  const magicTypePatern = RegExp(regStr, "i");
+  if (!magicTypePatern.test(trimmed)) {
+    const magic = Magic.invalid;
+    const { language, kind } = magicMap.get(magic)!;
+    return {
+      magic: magic,
+      language: language,
+      value: cellText,
+      kind: kind,
+    };
+  }
+  const magicStr =
+    magicTypePatern.exec(trimmed)?.groups?.magic?.toLowerCase() ?? "invalid"!;
+  let magic = enumFromString(Magic, magicStr) ?? Magic.invalid;
+  let { language, kind } = magicMap.get(magic)!;
+  return {
+    magic: magic,
+    language: language,
+    value: canHaveMagicHeader ? removeMagicHeaders(cellText) : cellText,
+    kind: kind,
+  };
+}
+
+const removeMagicHeaders = (contents: string) => {
+  const magicPattern = new RegExp(`${magicHeader}\\s?`, "gm");
+  return contents.replace(magicPattern, "");
+};
 
 const randomName = () => randomBytes(16).toString("hex");
 const isString = (obj: any) => typeof obj === "string";
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-const delaySync = (ms: number) =>
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+// const delaySync = (ms: number) => delay(ms).then((v) => v);
+// Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 const logDir = `${tmpdir()}/db-notebook`;
 const cmdOutput = getTmpFilePath(logDir, "cell-command", "out");
 
 const pythonReplName = "Databricks Notebook (Python)";
 
-const initReplCommand = `
+const pythonReplInitCommand = `
 from importlib import reload
 import os, sys
 from databricks.sdk import WorkspaceClient
@@ -79,10 +194,6 @@ w = WorkspaceClient()
 lang = Language.python
 `;
 
-// function getRandomName(): string {
-//   return randomBytes(16).toString("hex");
-// }
-
 function getTmpFilePath(dir: string, namePrefix: string, ext: string) {
   if (!isString(dir)) {
     dir = tmpdir();
@@ -90,44 +201,43 @@ function getTmpFilePath(dir: string, namePrefix: string, ext: string) {
   return path.join(dir, `${namePrefix}${randomName()}.${ext}`);
 }
 
-// let terminal: any = null;
 let controller: any = null;
 
-const normilizeCellText = (contents: string) =>
-  normilizeCellTextArray(contents.split(/\n/g));
+// const normilizeCellText = (contents: string) =>
+//   normilizeCellTextArray(contents.split(/\n/g));
 
-// .map((v) => v.replace(magicHeader, "").trim())
-// .join("\n")
-// .trim();
+// const normilizeCellTextArray = (contents: string[]) =>
+//   contents
+//     .map((v) => v.replace(magicHeader, "").trim())
+//     .join("\n")
+//     .trim();
+// const removeMagicHeaders = (contents: string[]) =>
+//   contents
+//     .map((v) => v.replace(magicHeader, "").trim())
+//     .join("\n")
+//     .trim();
 
-const normilizeCellTextArray = (contents: string[]) =>
-  contents
-    .map((v) => v.replace(magicHeader, "").trim())
-    .join("\n")
-    .trim();
-
-interface RawNotebookCell {
-  language: string;
-  value: string;
-  kind: vscode.NotebookCellKind;
-}
+// contents.replace()
+//   .split(/\n/g)
+//   .map((v) => v.replace(`${magicHeader} `, ""))
+//   .join("\n")
+//   .trim();
 
 export function activate(context: vscode.ExtensionContext) {
   // if (
-  //   vscode.window.activeTextEditor === undefined ||
-  //   !vscode.window.activeTextEditor.document
-  //     .getText()
-  //     .startsWith(notebookHeader)
+  //   vscode.workspace.workspaceFolders === undefined ||
+  //   vscode.workspace.workspaceFolders?.length === 0
   // ) {
-  //   vscode.window.showErrorMessage("Open a Databricks notebook");
+  //   vscode.window.showErrorMessage("Open a folder to use Databricks extension");
   //   return undefined;
   // }
 
   // Serializer
+  const serializer = new DatabricksNotebookSerializer();
   context.subscriptions.push(
     vscode.workspace.registerNotebookSerializer(
       "databricks-notebook",
-      new DatabricksNotebookSerializer()
+      serializer
     )
   );
 
@@ -142,6 +252,10 @@ export function activate(context: vscode.ExtensionContext) {
       controller.removePythonRepl();
     }
   });
+
+  // vscode.workspace.onDidChangeNotebookDocument(function (event) {
+  //   controller.onDidChangeNotebookDocument(event);
+  // });
 }
 
 class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
@@ -154,13 +268,20 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
     let raw: RawNotebookCell[];
     try {
       raw = <RawNotebookCell[]>this.parseNotebook(contents);
-    } catch {
+    } catch (error) {
+      vscode.window.showErrorMessage(`Error parsing notebook: ${error}`);
       raw = [];
     }
 
     const cells = raw.map(
-      (item) =>
-        new vscode.NotebookCellData(item.kind, item.value, item.language)
+      (c) =>
+        new vscode.NotebookCellData(
+          c.kind === Kind.markdown
+            ? vscode.NotebookCellKind.Markup
+            : vscode.NotebookCellKind.Code,
+          c.value,
+          c.language
+        )
     );
 
     return new vscode.NotebookData(cells);
@@ -172,147 +293,120 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
   ): Promise<Uint8Array> {
     let contents = data.cells
       .map((cell) => this.serializeCell(cell))
-      .join(`\n\n${cellSeparator}\n\n`);
+      .join(`${cellSeparator}`);
 
     return new TextEncoder().encode(notebookHeader + "\n" + contents);
   }
 
+  // onDidChangeNotebookDocument(event: vscode.NotebookDocumentChangeEvent) {
+  //   const changes = event.contentChanges
+  //     .filter((v) => v.addedCells?.length > 0)
+  //     .map((v) => v.addedCells)
+  //     .flatMap((v) => v)
+  //     .map((v) => v.metadata.languageId);
+  // }
+
   private parseNotebook(contents: string): RawNotebookCell[] {
     if (contents.startsWith(notebookHeader)) {
       const headerPattern = new RegExp(notebookHeader, "g");
-      const withoutHeader = contents.split(headerPattern)[1];
-      // let splitted = withoutHeader.split(/\n# COMMAND -+[^\n]\n/g);
+      const withoutHeader = contents.split(headerPattern)[1].trim();
       const cellSeparatorPattern = new RegExp(cellSeparatorRegex, "g");
-      const splitted = withoutHeader.split(cellSeparatorPattern);
-
-      const cleaned = splitted
-        .map((v) => v.replace(/^\s*[\r\n]/gm, ""))
-        .filter((v) => v.length > 0)
-        .map((v) => <RawNotebookCell>this.parseCell(v));
-      return cleaned;
+      const cells = withoutHeader.split(cellSeparatorPattern);
+      return cells.map((v) => this.parseCell(v));
     } else {
-      return [];
+      return [pythonRowNotebookCell(contents)];
     }
   }
 
   private parseCell(contents: string): RawNotebookCell {
-    // let kind = vscode.NotebookCellKind.Code;
-    // let language = "python";
-    // let v = contents;
-    // let magicPattern = new RegExp(magicHeader, "gm");
-
-    if (contents.startsWith(magicHeader)) {
-      if (contents.startsWith(mdMagicHeader)) {
-        return this.parseMdCell(contents);
-      } else if (contents.startsWith(sqlMagicHeader)) {
-        return this.parseSqlCell(contents);
-      } else if (contents.startsWith(runMagicHeader)) {
-        return this.parseRunCell(contents);
-      } else if (contents.startsWith(shMagicHeader)) {
-        return this.parseShCell(contents);
-      } else {
-        const magicPattern = new RegExp(magicHeader, "gm");
-        const magic = contents
-          .split(/\n/g)[0]
-          .trim()
-          .split(magicPattern)[1]
-          .split(/\s/)[0];
-        throw Error(`Magic ${magic} not supported`);
-      }
-    } else {
-      return {
-        kind: vscode.NotebookCellKind.Code,
-        value: contents,
-        language: pythonLanguage,
-      };
-    }
-
-    // } else if (contents.startsWith(magicHeader)) {
-    //   v = contents
-    //     .split(/\n/g)
-    //     .map((v) => v.replace(magicHeader, "").trim())
-    //     .join("\n")
-    //     .trim();
+    let res = parseCellText(contents);
+    // if (res.magic === Magic.invalid) {
+    //   vscode.window.showErrorMessage(`Magic ${res.magic} not supported`);
     // }
+    if (res.kind === Kind.markdown) {
+      // Remove `%md` from the markdown cell, anything before the `%md` row is irrelevant
+      res.value = res.value
+        .trimStart()
+        .replace(`\%${Magic.md}`, "")
+        .trimStart();
+    }
+    return res;
   }
 
-  private parseMdCell(contents: string): RawNotebookCell {
-    let value = normilizeCellTextArray(contents.split(/\n/g).slice(1));
-    // .map((v) => v.replace(magicHeader, ""))
-    // .join("\n")
-    // .trim();
-    return {
-      kind: vscode.NotebookCellKind.Markup,
-      value: normilizeCellTextArray(contents.split(/\n/g).slice(1)),
-      language: mdLanguage,
-    };
-  }
+  // private parseCell(contents: string): RawNotebookCell {
+  //   if (contents.trimStart().startsWith(magicHeader)) {
+  //     return this.parseMagicCell(contents);
+  //   }
+  //   return {
+  //     magic: "",
+  //     kind: vscode.NotebookCellKind.Code,
+  //     value: contents,
+  //     language: pythonLanguage,
+  //   };
+  // }
 
-  private parseSqlCell(contents: string): RawNotebookCell {
-    // let value = contents
-    //   .split(/\n/g)
-    //   // .slice(1)
-    //   .map((v) => v.replace(magicHeader, "").trim())
-    //   .join("\n")
-    //   .trim();
-    return {
-      kind: vscode.NotebookCellKind.Code,
-      value: normilizeCellText(contents),
-      language: sqlLanguage,
-    };
-  }
-
-  private parseRunCell(contents: string): RawNotebookCell {
-    // Must be a single-line but not enforcing here
-    // let value = contents
-    //   .split(/\n/g)
-    //   .map((v) => v.replace(magicHeader, "").trim())
-    //   .join("\n")
-    //   .trim();
-    return {
-      kind: vscode.NotebookCellKind.Code,
-      value: normilizeCellText(contents),
-      language: runLanguage,
-    };
-  }
-
-  private parseShCell(contents: string): RawNotebookCell {
-    // let value = contents
-    //   .split(/\n/g)
-    //   .map((v) => v.replace(magicHeader, "").trim())
-    //   .join("\n")
-    //   .trim();
-    return {
-      kind: vscode.NotebookCellKind.Code,
-      value: normilizeCellText(contents),
-      language: shellLanguage,
-    };
-  }
+  // private parseMagicCell(contents: string): RawNotebookCell {
+  //   const leftTrimmed = contents.trimStart().split(/\n/g);
+  //   let parsedMagic = parseMagic(leftTrimmed[0]);
+  //   if (parsedMagic.language === undefinedLanguage) {
+  //     vscode.window.showErrorMessage(
+  //       `Magic ${parsedMagic.magic} not supported`
+  //     );
+  //   }
+  //   if (parsedMagic.kind === vscode.NotebookCellKind.Markup) {
+  //     // Remove `%md` from the markdown cell, anything before the `%md` row is irrelevant
+  //     contents = leftTrimmed.slice(1).join("\n");
+  //   }
+  //   return {
+  //     magic: parsedMagic.magic,
+  //     kind: parsedMagic.kind,
+  //     // value: normilizeCellTextArray(split), // TODO: don't need this here, move to execute
+  //     value: removeMagicHeaders(contents),
+  //     language: parsedMagic.language,
+  //   };
+  // }
 
   private serializeCell(cell: vscode.NotebookCellData): string {
-    if (cell.kind === vscode.NotebookCellKind.Markup) {
-      let split = cell.value.trim().split(/\n/gm);
-      return `${mdMagicHeader}\n${magicHeader} ${split.join(
-        `\n${magicHeader}`
-      )}`;
-    } else {
-      if (cell.languageId === sqlLanguage) {
-        let split = cell.value.trim().split(/\n/gm);
-        return `${magicHeader} ${split.join(`\n${magicHeader}`)}`;
-      } else if (cell.languageId === runLanguage) {
-        // Technically, this shoud have only one line but not enforcing here
-        let split = cell.value.trim().split(/\n/gm);
-        return `${magicHeader} ${split.join(`\n${magicHeader}`)}`;
-      } else if (cell.languageId === shellLanguage) {
-        let split = cell.value
-          .trim()
-          .split(/\n/gm)
-          .map((v) => `${magicHeader}${v.length > 0 ? ` ${v}` : ""}`);
-        return split.join("\n");
-      } else {
-        return cell.value.trim();
-      }
+    // Important design decition - current cell content takes over the cell properties.
+    // This way the cell type can be changed and enforced via magic strings
+    const rawCell = parseCellText(cell.value, false);
+    if (rawCell.magic === Magic.none && rawCell.language === Language.python) {
+      return cell.value;
     }
+    const split = cell.value.split(/\n/gm);
+    let res = `${magicHeader} ${split.join(`\n${magicHeader} `)}`;
+
+    if (
+      rawCell.kind !== Kind.markdown &&
+      cell.kind === vscode.NotebookCellKind.Markup
+    ) {
+      res = `${mdMagicHeader}\n${res}`;
+    }
+    return res;
+
+    // else {
+    // const language =
+    //   (rawCell.language === cell.languageId || rawCell.magic === Magic.sh)
+    //     ? cell.languageId
+    //     : rawCell.language;
+    //   const;
+    //   if (language === Language.sql) {
+    //     let split = cell.value.trim().split(/\n/gm);
+    //     return `${magicHeader} ${split.join(`\n${magicHeader} `)}`;
+    //   } else if (language === Language.run) {
+    //     // Technically, this shoud have only one line but not enforcing here
+    //     let split = cell.value.trim().split(/\n/gm);
+    //     return `${magicHeader} ${split.join(`\n${magicHeader} `)}`;
+    //   } else if (cell.languageId === Language.sh) {
+    //     let split = cell.value
+    //       .trim()
+    //       .split(/\n/gm)
+    //       .map((v) => `${magicHeader}${v.length > 0 ? ` ${v}` : ""}`);
+    //     return split.join("\n");
+    //   } else {
+    //     return cell.value;
+    //   }
+    // }
   }
 }
 
@@ -321,10 +415,11 @@ class Controller {
   readonly notebookType = "databricks-notebook";
   readonly label = "Databricks Notebook";
   readonly supportedLanguages = [
-    pythonLanguage,
-    sqlLanguage,
-    shellLanguage,
-    runLanguage,
+    Language.python,
+    Language.sql,
+    Language.sh,
+    Language.remoteSh,
+    Language.run,
   ];
 
   private readonly controller: vscode.NotebookController;
@@ -349,8 +444,8 @@ class Controller {
     this.controller.dispose();
   }
 
-  private async init() {
-    this.pythonRepl = await this.createPythonRepl();
+  async init() {
+    this.createPythonRepl().then((repl) => (this.pythonRepl = repl));
   }
 
   private async execute(
@@ -401,7 +496,7 @@ class Controller {
       let output = new TextDecoder().decode(await readFile(cmdOutput));
       if (output.match(marker)) {
         res = output.split(marker)[1].split(markerStart)[0];
-        if (language === runLanguage) {
+        if (language === Language.run) {
           // Filter out the response from reload
           res = res
             .split(/\n/gm)
@@ -425,12 +520,12 @@ class Controller {
     language: string
   ): Promise<string> {
     let command = cellText;
-    if (language === sqlLanguage) {
+    if (language === Language.sql) {
       command = command.replace("%sql", "").trim();
       if (command.length > 0) {
         command = `spark.sql("${command.replace(/\n/gm, " ")}").show()`;
       }
-    } else if (language === runLanguage) {
+    } else if (language === Language.run) {
       let notebookPath = vscode.window.activeTextEditor?.document.uri.path!;
       if (isString(notebookPath)) {
         let cmd = command.replace("%run ", "").trim();
@@ -452,7 +547,7 @@ class Controller {
           "Cannot determine the noteboook source path"
         );
       }
-    } else if (language === shellLanguage) {
+    } else if (language === Language.remoteSh) {
       let cmd = command.replace("%sh", "").trim().split(/\n/gm);
       command = "w.clusters.ensure_cluster_is_running(w.config.cluster_id)\n";
       command += `c = w.command_execution\n`;
@@ -489,13 +584,13 @@ class Controller {
 
     if (envCommand && isString(envCommand)) {
       terminal.sendText(envCommand);
-      await delay(config.get("envActivationTimeout", 1000));
+      await delay(config.get("envActivationTimeout", 2000));
     }
 
     terminal.sendText("python");
-    await delay(config.get("pythonActivationCommand", 1000));
+    await delay(config.get("pythonActivationCommand", 2000));
 
-    terminal.sendText(initReplCommand);
+    terminal.sendText(pythonReplInitCommand);
 
     return terminal;
   }
@@ -521,24 +616,6 @@ class Controller {
     this.interrupted = true;
   }
 }
-
-// function runCommand(command: string, doneFile: string, outMarker: string) {
-//   terminal.sendText(`logger.clear_done("${doneFile}")`);
-//   terminal.sendText(`logger.write("${outMarker}")`);
-//   terminal.sendText(command);
-//   terminal.sendText("\n");
-//   terminal.sendText(`logger.flag_done("${doneFile}")`);
-// }
-
-// function removePythonTerminal() {
-//   terminal = null;
-//   // if (terminal !== null) {
-//   //   terminal.sendText("exit()");
-//   //   delaySync(300);
-//   //   terminal.dispose();
-//   //   terminal = null;
-//   // }
-// }
 
 // This method is called when your extension is deactivated
 export function deactivate() {}

@@ -16,6 +16,20 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "run",
+        "aliases": [
+          "Run (magic)"
+        ]
+      },
+      {
+        "id": "remote-sh",
+        "aliases": [
+          "Remote Shell (magic)"
+        ]
+      }
+    ],
     "notebooks": [
       {
         "id": "databricks-notebook",
@@ -23,7 +37,8 @@
         "displayName": "Databricks Notebook",
         "selector": [
           {
-            "filenamePattern": "*.py"
+            "filenamePattern": "*.py",
+            "firstLine-doesnt work": "# Databricks notebook source"
           }
         ]
       }

@@ -1,6 +1,5 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC ### A sample Databricks notebook
+### A sample Databricks notebook
 
 # COMMAND ----------
 
@@ -17,14 +16,12 @@ print(rows)
 # COMMAND ----------
 
 # MAGIC %sh
-# MAGIC
 # MAGIC pwd
-# MAGIC ls -la
 # MAGIC python --version
 
 # COMMAND ----------
 
-print("hello")
+spark.conf.get("spark.databricks.clusterUsageTags.sparkVersion")
 
 # COMMAND ----------
 
@@ -34,8 +31,8 @@ df.show(5)
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGICSELECT sum(trip_distance)
-# MAGICFROM samples.nyctaxi.trips
+# MAGIC SELECT sum(trip_distance)
+# MAGIC FROM samples.nyctaxi.trips
 
 # COMMAND ----------
 
@@ -45,12 +42,24 @@ df.show(5)
 
 df = spark.createDataFrame(rows)
 
-# MAGIC %sql
-# MAGIC DROP TABLE hive_metastore.default.bubu;
+# COMMAND ----------
+
+# MAGIC %%sql
+# MAGIC DROP TABLE IF EXISTS hive_metastore.default.bubu;
 
 # COMMAND ----------
 
 df.write.mode("overwrite").saveAsTable("hive_metastore.default.bubu")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT * FROM hive_metastore.default.bubu
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC DROP TABLE IF EXISTS hive_metastore.default.bubu
 
 # COMMAND ----------
 
