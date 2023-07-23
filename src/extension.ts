@@ -361,6 +361,7 @@ class Controller {
 
   private readonly controller: vscode.NotebookController;
   private pythonRepl: any;
+  private initialised: boolean = false;
   private _executionOrder = 0;
   private interrupted = false;
 
@@ -383,6 +384,7 @@ class Controller {
 
   async init() {
     this.pythonRepl = await this.createPythonRepl();
+    this.initialised = true;
   }
 
   private async execute(
@@ -391,6 +393,12 @@ class Controller {
     _controller: vscode.NotebookController
   ): Promise<void> {
     this.interrupted = false;
+    while (!this.initialised && !this.interrupted) {
+      await delay(100);
+    }
+    if (this.interrupted) {
+      return;
+    }
     for (let cell of cells) {
       await this.executeCell(cell);
     }
@@ -459,6 +467,10 @@ class Controller {
             .split(/\n/gm)
             .filter((v) => !(v.startsWith("<module ") && v.endsWith(">")))
             .join("\n");
+        } else if (language === Language.sh || language === Language.remoteSh) {
+          res = res.replace(/\\n/gm, "\n").replace(/'/gm, "");
+        } else if (language === Language.fs) {
+          res = res.replace(/, FileInfo/gm, "\nFileInfo").replace(/'/gm, "");
         }
       }
       if (res.length === 0) {
@@ -472,8 +484,7 @@ class Controller {
     execution.end(true, Date.now());
   }
 
-  private prepareCommand(cellText: string, language: string): string {
-    let command = cellText;
+  private prepareCommand(cellText: string, language: Language): string {
     if (language === Language.sql) {
       return this.prepareSqlCommand(cellText);
     } else if (language === Language.run) {
@@ -485,7 +496,7 @@ class Controller {
     } else if (language === Language.fs) {
       return this.prepareFsCommand(cellText);
     }
-    return this.preparePythonCommand(command);
+    return this.preparePythonCommand(cellText);
   }
 
   private splitStripEmpty(txt: string): string[] {
