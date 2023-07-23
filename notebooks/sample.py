@@ -1,5 +1,6 @@
 # Databricks notebook source
-### A sample Databricks notebook
+# MAGIC %md
+# MAGIC ### A sample Databricks notebook
 
 # COMMAND ----------
 
@@ -16,12 +17,31 @@ print(rows)
 # COMMAND ----------
 
 # MAGIC %sh
+# MAGIC pip list
+
+# COMMAND ----------
+
+# MAGIC %sh
 # MAGIC pwd
 # MAGIC python --version
 
 # COMMAND ----------
 
+# MAGIC %fs ls /
+
+# COMMAND ----------
+
+dbutils.fs.ls('/')
+
+# COMMAND ----------
+
 spark.conf.get("spark.databricks.clusterUsageTags.sparkVersion")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT sum(trip_distance)
+# MAGIC FROM samples.nyctaxi.trips
 
 # COMMAND ----------
 

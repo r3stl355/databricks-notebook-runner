@@ -28,6 +28,12 @@
         "aliases": [
           "Remote Shell (magic)"
         ]
+      },
+      {
+        "id": "fs",
+        "aliases": [
+          "dbutils (fs)"
+        ]
       }
     ],
     "notebooks": [

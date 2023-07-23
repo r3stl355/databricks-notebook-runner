@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { randomBytes } from "crypto";
-import { Terminal } from "vscode";
+// import { Terminal } from "vscode";
 import * as path from "path";
 import { tmpdir } from "os";
 
@@ -19,16 +19,8 @@ enum Language {
   sh = "shellscript",
   remoteSh = "remote-sh",
   md = "markdown",
+  fs = "fs",
 }
-// const pythonLanguage = "python";
-// const sqlLanguage = "sql";
-// const runLanguage = "run";
-// const shLanguage = "shellscript";
-// const remoteShLanguage = "remote-sh";
-// // const mdLanguage = "markdown";
-// // const undefinedLanguage = "plaintext";
-
-// const undefinedKind = vscode.NotebookCellKind.Code;
 
 enum Kind {
   markdown = vscode.NotebookCellKind.Markup,
@@ -43,6 +35,7 @@ enum Magic {
   sh = "sh",
   run = "run",
   sql = "sql",
+  fs = "fs",
 }
 
 interface RawNotebookCell {
@@ -55,28 +48,26 @@ interface RawNotebookCell {
 const magicHeader = "# MAGIC";
 const mdMagicHeader = `${magicHeader} %${Magic.md}`;
 
-// const magicMap = new Map([
-//   [Magic.md, { language: Language.md, kind: vscode.NotebookCellKind.Markup }],
-//   [Magic.sql, { language: Language.sql, kind: vscode.NotebookCellKind.Code }],
-//   [Magic.run, { language: Language.run, kind: vscode.NotebookCellKind.Code }],
-//   [Magic.sh, { language: Language.sh, kind: vscode.NotebookCellKind.Code }],
-//   [
-//     Magic.none,
-//     { language: Language.python, kind: vscode.NotebookCellKind.Code },
-//   ],
-//   [
-//     Magic.invalid,
-//     { language: Language.unknown, kind: vscode.NotebookCellKind.Code },
-//   ],
-// ]);
-
 const magicMap = new Map([
   [Magic.md, { language: Language.md, kind: Kind.markdown }],
   [Magic.sql, { language: Language.sql, kind: Kind.code }],
   [Magic.run, { language: Language.run, kind: Kind.code }],
   [Magic.sh, { language: Language.sh, kind: Kind.code }],
+  [Magic.fs, { language: Language.fs, kind: Kind.code }],
   [Magic.none, { language: Language.python, kind: Kind.code }],
   [Magic.invalid, { language: Language.unknown, kind: Kind.code }],
+]);
+
+const languageMap = new Map([
+  [Language.md, Magic.md],
+  [Language.sql, Magic.sql],
+  [Language.run, Magic.run],
+  [Language.sh, Magic.sh],
+  [Language.remoteSh, Magic.sh],
+  [Language.fs, Magic.fs],
+  // [Language.python, Magic.none]
+  // [Language.python, kind: Kind.code }],
+  // [Magic.invalid, { language: Language.unknown, kind: Kind.code }],
 ]);
 
 function enumFromString<T>(
@@ -135,7 +126,15 @@ function parseCellText(
 
 const removeMagicHeaders = (contents: string) => {
   const magicPattern = new RegExp(`${magicHeader}\\s?`, "gm");
-  return contents.replace(magicPattern, "");
+  const cleaned = contents.replace(magicPattern, "");
+  return cleaned;
+  // if (res.kind === Kind.markdown) {
+  //   // Remove `%md` from the markdown cell, anything before the `%md` row is irrelevant
+  //   res.value = res.value
+  //     .trimStart()
+  //     .replace(`\%${Magic.md}`, "")
+  //     .trimStart();
+  // }
 };
 
 const randomName = () => randomBytes(16).toString("hex");
@@ -152,9 +151,9 @@ const pythonReplName = "Databricks Notebook (Python)";
 const pythonReplInitCommand = `
 from importlib import reload
 import os, sys
+import subprocess
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.compute import Language 
-#from databricks.sdk import dbutils
+from databricks.sdk.service.compute import Language
 
 sys.path.append("${logDir}")
 
@@ -203,26 +202,6 @@ function getTmpFilePath(dir: string, namePrefix: string, ext: string) {
 
 let controller: any = null;
 
-// const normilizeCellText = (contents: string) =>
-//   normilizeCellTextArray(contents.split(/\n/g));
-
-// const normilizeCellTextArray = (contents: string[]) =>
-//   contents
-//     .map((v) => v.replace(magicHeader, "").trim())
-//     .join("\n")
-//     .trim();
-// const removeMagicHeaders = (contents: string[]) =>
-//   contents
-//     .map((v) => v.replace(magicHeader, "").trim())
-//     .join("\n")
-//     .trim();
-
-// contents.replace()
-//   .split(/\n/g)
-//   .map((v) => v.replace(`${magicHeader} `, ""))
-//   .join("\n")
-//   .trim();
-
 export function activate(context: vscode.ExtensionContext) {
   // if (
   //   vscode.workspace.workspaceFolders === undefined ||
@@ -243,9 +222,15 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Controller
   controller = new Controller();
-  controller.init();
+
   context.subscriptions.push(controller);
-  vscode.window.showInformationMessage("Databricks Notebook runner is active!");
+  controller
+    .init()
+    .then(() =>
+      vscode.window.showInformationMessage(
+        "Databricks Notebook runner is active!"
+      )
+    );
 
   vscode.window.onDidCloseTerminal(function (event) {
     if (event.name === pythonReplName && controller !== null) {
@@ -333,80 +318,31 @@ class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
     return res;
   }
 
-  // private parseCell(contents: string): RawNotebookCell {
-  //   if (contents.trimStart().startsWith(magicHeader)) {
-  //     return this.parseMagicCell(contents);
-  //   }
-  //   return {
-  //     magic: "",
-  //     kind: vscode.NotebookCellKind.Code,
-  //     value: contents,
-  //     language: pythonLanguage,
-  //   };
-  // }
-
-  // private parseMagicCell(contents: string): RawNotebookCell {
-  //   const leftTrimmed = contents.trimStart().split(/\n/g);
-  //   let parsedMagic = parseMagic(leftTrimmed[0]);
-  //   if (parsedMagic.language === undefinedLanguage) {
-  //     vscode.window.showErrorMessage(
-  //       `Magic ${parsedMagic.magic} not supported`
-  //     );
-  //   }
-  //   if (parsedMagic.kind === vscode.NotebookCellKind.Markup) {
-  //     // Remove `%md` from the markdown cell, anything before the `%md` row is irrelevant
-  //     contents = leftTrimmed.slice(1).join("\n");
-  //   }
-  //   return {
-  //     magic: parsedMagic.magic,
-  //     kind: parsedMagic.kind,
-  //     // value: normilizeCellTextArray(split), // TODO: don't need this here, move to execute
-  //     value: removeMagicHeaders(contents),
-  //     language: parsedMagic.language,
-  //   };
-  // }
-
   private serializeCell(cell: vscode.NotebookCellData): string {
-    // Important design decition - current cell content takes over the cell properties.
-    // This way the cell type can be changed and enforced via magic strings
-    const rawCell = parseCellText(cell.value, false);
-    if (rawCell.magic === Magic.none && rawCell.language === Language.python) {
-      return cell.value;
+    // Important design decitions
+    //  - magic in the current cell content has a priority over the cell properties
+    //  - if there is no magic then honor then it can be Python or Markdown only
+    //  - in which case current cell language will determine if it is a Markdown
+    let cellText = cell.value;
+    const rawCell = parseCellText(cellText, false);
+    if (rawCell.magic === Magic.none) {
+      if (cell.languageId === Language.python) {
+        // This is surely a Python cell
+        return cell.value;
+      } else if (cell.languageId === Language.md) {
+        // Insert the relevant magic into cell
+        // const language = enumFromString(Language, cell.languageId)!;
+        // const magic = languageMap.get(language);
+        cellText = `%${Magic.md}\n${cellText}`;
+      }
     }
-    const split = cell.value.split(/\n/gm);
-    let res = `${magicHeader} ${split.join(`\n${magicHeader} `)}`;
-
-    if (
-      rawCell.kind !== Kind.markdown &&
-      cell.kind === vscode.NotebookCellKind.Markup
-    ) {
-      res = `${mdMagicHeader}\n${res}`;
-    }
-    return res;
-
-    // else {
-    // const language =
-    //   (rawCell.language === cell.languageId || rawCell.magic === Magic.sh)
-    //     ? cell.languageId
-    //     : rawCell.language;
-    //   const;
-    //   if (language === Language.sql) {
-    //     let split = cell.value.trim().split(/\n/gm);
-    //     return `${magicHeader} ${split.join(`\n${magicHeader} `)}`;
-    //   } else if (language === Language.run) {
-    //     // Technically, this shoud have only one line but not enforcing here
-    //     let split = cell.value.trim().split(/\n/gm);
-    //     return `${magicHeader} ${split.join(`\n${magicHeader} `)}`;
-    //   } else if (cell.languageId === Language.sh) {
-    //     let split = cell.value
-    //       .trim()
-    //       .split(/\n/gm)
-    //       .map((v) => `${magicHeader}${v.length > 0 ? ` ${v}` : ""}`);
-    //     return split.join("\n");
-    //   } else {
-    //     return cell.value;
-    //   }
+    // } if (cell.kind === vscode.NotebookCellKind.Markup) {
+    //   // Because we are not using the magic in Markdown cells, handle them separately
+    //   res = `${mdMagicHeader}\n${res}`;
     // }
+    const split = cellText.split(/\n/gm);
+    let res = `${magicHeader} ${split.join(`\n${magicHeader} `)}`;
+    return res;
   }
 }
 
@@ -420,6 +356,7 @@ class Controller {
     Language.sh,
     Language.remoteSh,
     Language.run,
+    Language.fs,
   ];
 
   private readonly controller: vscode.NotebookController;
@@ -445,7 +382,7 @@ class Controller {
   }
 
   async init() {
-    this.createPythonRepl().then((repl) => (this.pythonRepl = repl));
+    this.pythonRepl = await this.createPythonRepl();
   }
 
   private async execute(
@@ -465,28 +402,48 @@ class Controller {
     if (cellText.length === 0) {
       return;
     }
-    let language = cell.document.languageId;
+    // Important design decition - current cell content takes over the cell properties.
+    // This way the cell type can be changed and enforced via magic strings
+    const rawCell = parseCellText(cellText, false);
 
-    // let language = execution.cell.document.languageId;
-    let command = await this.prepareCommand(cellText, language);
-    if (command.length === 0) {
-      return;
+    // Some magic is used by more than one language (e.g. `sh`)
+    let language = rawCell.language;
+    if (
+      rawCell.magic === Magic.sh &&
+      cell.document.languageId !== rawCell.language &&
+      cell.document.languageId === Language.remoteSh
+    ) {
+      language = Language.remoteSh;
     }
+    const command = this.prepareCommand(cellText, language);
+    if (command.length > 0) {
+      await this.executeCommand(
+        cell,
+        enumFromString(Language, language)!,
+        command
+      );
+    }
+  }
 
+  private async executeCommand(
+    cell: vscode.NotebookCell,
+    language: Language,
+    command: string
+  ): Promise<void> {
     const execution = this.controller.createNotebookCellExecution(cell);
     execution.executionOrder = ++this._executionOrder;
     execution.start(Date.now());
 
-    let cmdId = randomName(); // randomBytes(16).toString("hex");
+    let cmdId = randomName();
     let flagFile = `${logDir}/flag-${cmdId}`;
     let markerStart = "-- db-notebook-";
     let marker = `${markerStart}${cmdId} -->`;
 
-    this.runCommand(command, flagFile, marker);
+    this.runPythonCommand(command, flagFile, marker);
 
-    const delayStep = 100;
+    const statusCheckDelay = 100;
     while (!existsSync(flagFile) && !this.interrupted) {
-      await delay(delayStep);
+      await delay(statusCheckDelay);
     }
 
     let res = "OK";
@@ -515,57 +472,112 @@ class Controller {
     execution.end(true, Date.now());
   }
 
-  private async prepareCommand(
-    cellText: string,
-    language: string
-  ): Promise<string> {
+  private prepareCommand(cellText: string, language: string): string {
     let command = cellText;
     if (language === Language.sql) {
-      command = command.replace("%sql", "").trim();
-      if (command.length > 0) {
-        command = `spark.sql("${command.replace(/\n/gm, " ")}").show()`;
-      }
+      return this.prepareSqlCommand(cellText);
     } else if (language === Language.run) {
-      let notebookPath = vscode.window.activeTextEditor?.document.uri.path!;
-      if (isString(notebookPath)) {
-        let cmd = command.replace("%run ", "").trim();
-        let dir = path.dirname(notebookPath);
-        let scriptPath = path.join(path.dirname(notebookPath), cmd);
-        let scriptDir = path.dirname(scriptPath);
-        let moduleName = path.basename(scriptPath);
-        command = `if "${scriptDir}" not in sys.path:\n  sys.path.append("${scriptDir}")\n\n`;
-        command += `try: reload(${moduleName})\nexcept: import ${moduleName}\n\n`;
-        command += `from ${moduleName} import *\n`;
-
-        // command = `spec = importlib.util.spec_from_file_location('run.cell', '${scriptPath}')\n`;
-        // command += "run_cell_module = importlib.util.module_from_spec(spec)\n";
-        // command += "sys.modules['run.cell'] = run_cell_module\n";
-        // command += "spec.loader.exec_module(run_cell_module)\n";
-        // command += "from ${} import *\n";
-      } else {
-        vscode.window.showWarningMessage(
-          "Cannot determine the noteboook source path"
-        );
-      }
+      return this.prepareRunCommand(cellText);
+    } else if (language === Language.sh) {
+      return this.prepareShCommand(cellText);
     } else if (language === Language.remoteSh) {
-      let cmd = command.replace("%sh", "").trim().split(/\n/gm);
-      command = "w.clusters.ensure_cluster_is_running(w.config.cluster_id)\n";
-      command += `c = w.command_execution\n`;
-      command += `c_id = c.create_and_wait(cluster_id=w.config.cluster_id, language=lang).id\n`;
-      let subCmd = cmd.map(
+      return this.prepareRemoteShCommand(cellText);
+    } else if (language === Language.fs) {
+      return this.prepareFsCommand(cellText);
+    }
+    return this.preparePythonCommand(command);
+  }
+
+  private splitStripEmpty(txt: string): string[] {
+    return txt
+      .trim()
+      .split(/\n/gm)
+      .map((l) => l.trim())
+      .filter((v) => v.length > 0);
+  }
+
+  private preparePythonCommand(cellText: string): string {
+    return cellText.replace(/dbutils\./gim, "w.dbutils.");
+  }
+
+  private prepareShCommand(cellText: string): string {
+    return this.splitStripEmpty(cellText.replace("%sh", ""))
+      .map(
         (v) =>
-          `import subprocess\\nsubprocess.run(['${v
-            .trim()
-            .replace(" ", "','")}'], capture_output=True).stdout.decode()`
-      );
-      command += subCmd
-        .map(
-          (v) =>
-            `print(c.execute_and_wait(context_id=c_id, cluster_id=w.config.cluster_id, language=lang, command="${v}").results.data)`
-        )
-        .join("\n");
+          `subprocess.run(['${v.replace(
+            " ",
+            "','"
+          )}'], capture_output=True).stdout.decode()`
+      )
+      .join("\n");
+  }
+
+  private prepareRemoteShCommand(cellText: string): string {
+    let command = "w.clusters.ensure_cluster_is_running(w.config.cluster_id)\n";
+    command += `c = w.command_execution\n`;
+    command += `c_id = c.create_and_wait(cluster_id=w.config.cluster_id, language=lang).id\n`;
+    let subCmd = this.splitStripEmpty(cellText.replace("%sh", ""))
+      .map(
+        (v) =>
+          `import subprocess\\nsubprocess.run(['${v.replace(
+            " ",
+            "','"
+          )}'], capture_output=True).stdout.decode()`
+      )
+      .map(
+        (v) =>
+          `print(c.execute_and_wait(context_id=c_id, cluster_id=w.config.cluster_id, language=lang, command="${v}").results.data)`
+      )
+      .join("\n");
+    command += subCmd;
+    return command;
+  }
+
+  private prepareSqlCommand(cellText: string): string {
+    let command = cellText.replace("%sql", "").trim();
+    if (command.length > 0) {
+      command = `spark.sql("${command.replace(/\n/gm, " ")}").show()`;
     }
     return command;
+  }
+
+  private prepareRunCommand(cellText: string): string {
+    let notebookPath = vscode.window.activeTextEditor?.document.uri.path!;
+    if (isString(notebookPath)) {
+      let cmd = cellText.replace("%run ", "").trim();
+      let dir = path.dirname(notebookPath);
+      let scriptPath = path.join(path.dirname(notebookPath), cmd);
+      let scriptDir = path.dirname(scriptPath);
+      let moduleName = path.basename(scriptPath);
+      let command = `if "${scriptDir}" not in sys.path:\n  sys.path.append("${scriptDir}")\n\n`;
+      command += `try: reload(${moduleName})\nexcept: import ${moduleName}\n\n`;
+      command += `from ${moduleName} import *\n`;
+
+      return command;
+
+      // command = `spec = importlib.util.spec_from_file_location('run.cell', '${scriptPath}')\n`;
+      // command += "run_cell_module = importlib.util.module_from_spec(spec)\n";
+      // command += "sys.modules['run.cell'] = run_cell_module\n";
+      // command += "spec.loader.exec_module(run_cell_module)\n";
+      // command += "from ${} import *\n";
+    } else {
+      vscode.window.showWarningMessage(
+        "Cannot determine the noteboook source path"
+      );
+      return "";
+    }
+  }
+
+  private prepareFsCommand(cellText: string): string {
+    // For now only support a single line
+    const subCmd = cellText.trim().split(/\n/g)[0].trim();
+    const fsCmd = subCmd
+      .replace(`\%${Magic.fs}`, "")
+      .trim()
+      .split(/\s/)
+      .filter((v) => v.length > 0);
+    const fsCmdStr = `${fsCmd[0]}("${fsCmd.slice(1).join('", "')}")`;
+    return `w.dbutils.fs.${fsCmdStr}`;
   }
 
   private async createPythonRepl() {
@@ -591,11 +603,12 @@ class Controller {
     await delay(config.get("pythonActivationCommand", 2000));
 
     terminal.sendText(pythonReplInitCommand);
+    await delay(config.get("pythonActivationCommand", 2000));
 
     return terminal;
   }
 
-  private runCommand(
+  private runPythonCommand(
     command: string,
     doneFile: string,
     outMarker: string
