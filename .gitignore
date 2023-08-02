@@ -72,7 +72,7 @@ venv.bak/
 *.swp
 *.swo
 *.idea
-*.vscode
+*.vscode*
 *.iml
 *~
 
