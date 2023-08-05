@@ -10,7 +10,7 @@ jobs:
   run-tests:
     strategy:
       matrix:
-        os: [macos-latest, windows-latest],
+        os: [macos-latest, windows-latest]
         node-version: [16.x]
         vscode-version: [stable]
 
