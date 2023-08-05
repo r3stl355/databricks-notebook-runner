@@ -9,10 +9,10 @@ on:
 jobs:
   run-tests:
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
         node-version: [16.x]
-        vscode-version: [stable]
 
     uses: ./.github/workflows/tests.yml
     with:

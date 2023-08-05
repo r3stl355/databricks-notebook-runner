@@ -9,9 +9,6 @@ on:
       node-version:
         required: true
         type: string
-      vscode-version:
-        required: true
-        type: string
 
 jobs:
   build-test:
@@ -26,12 +23,6 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
           cache: "npm"
-
-      - name: Cache VSCode unit test runner
-        uses: actions/cache@v3
-        with:
-          path: /tmp/vscode-test-databricks
-          key: ${{ inputs.vscode-version }}-vscode-test
 
       - run: npm install --immutable
 
