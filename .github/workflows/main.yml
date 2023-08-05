@@ -16,6 +16,6 @@ jobs:
 
     uses: ./.github/workflows/tests.yml
     with:
-      os: ${{ matrix.arch.os }}
+      os: ${{ matrix.os }}
       node-version: ${{ matrix.node-version }}
       vscode-version: ${{ matrix.vscode-version }}
