@@ -1,6 +1,6 @@
 {
-  "name": "databricks-notebook",
-  "displayName": "Databricks Notebook",
+  "name": "databricks-notebook-runner",
+  "displayName": "Databricks Notebook Runner",
   "description": "Plugin to run Databricks notebooks in Visual Studio Code",
   "version": "0.0.1",
   "publisher": "r3stl355",
@@ -12,7 +12,7 @@
     "Notebooks"
   ],
   "activationEvents": [
-    "onNotebook:databricks-notebook"
+    "onNotebook:databricks-notebook-runner"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -38,13 +38,12 @@
     ],
     "notebooks": [
       {
-        "id": "databricks-notebook",
-        "type": "databricks-notebook",
-        "displayName": "Databricks Notebook",
+        "id": "databricks-notebook-runner",
+        "type": "databricks-notebook-runner",
+        "displayName": "Databricks Notebook Runner",
         "selector": [
           {
-            "filenamePattern": "*.py",
-            "firstLine-doesnt work": "# Databricks notebook source"
+            "filenamePattern": "*.py"
           }
         ]
       }
@@ -57,7 +56,7 @@
           "dbNotebook.pythonEnvActivationCommand": {
             "type": "string",
             "description": "Custom Python environment activation command (must have Databricks Connect installed)",
-            "default": "export DATABRICKS_CONFIG_PROFILE=db-notebook && workon dbconnect_env"
+            "default": "export DATABRICKS_CONFIG_PROFILE=db-notebook-runner && workon db_connect_env"
           },
           "dbNotebook.showPythonRepl": {
             "type": "boolean",
