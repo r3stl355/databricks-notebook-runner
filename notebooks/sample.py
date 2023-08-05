@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC ### A sample Databricks notebook
+# MAGIC ### A sample Databricks Notebook
 
 # COMMAND ----------
 
@@ -36,12 +36,6 @@ dbutils.fs.ls('/')
 # COMMAND ----------
 
 spark.conf.get("spark.databricks.clusterUsageTags.sparkVersion")
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC SELECT sum(trip_distance)
-# MAGIC FROM samples.nyctaxi.trips
 
 # COMMAND ----------
 
@@ -85,3 +79,8 @@ df.write.mode("overwrite").saveAsTable("hive_metastore.default.bubu")
 
 # MAGIC %sql
 # MAGIC SELECT * FROM hive_metastore.default.bubu
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC show tables in samples.nyctaxi

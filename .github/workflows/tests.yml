@@ -1,0 +1,39 @@
+name: Tests
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      node-version:
+        required: true
+        type: string
+      vscode-version:
+        required: true
+        type: string
+
+jobs:
+  build-test:
+    name: Build and test
+    runs-on: ${{ inputs.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: "npm"
+
+      - name: Cache VSCode unit test runner
+        uses: actions/cache@v3
+        with:
+          path: /tmp/vscode-test-databricks
+          key: ${{ inputs.vscode-version }}-vscode-test
+
+      - run: nmp install --immutable
+
+      - name: Test
+        run: nmp run test

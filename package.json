@@ -1,10 +1,10 @@
 {
   "name": "databricks-notebook",
   "displayName": "Databricks Notebook",
-  "description": "Plugin to run Databricks notebooks in VSCode",
+  "description": "Plugin to run Databricks notebooks in Visual Studio Code",
   "version": "0.0.1",
   "publisher": "r3stl355",
-  "repository": "https://github.com/r3stl355/db_notebook.git",
+  "repository": "https://github.com/r3stl355/databricks-notebook-runner.git",
   "engines": {
     "vscode": "^1.78.0"
   },
@@ -86,6 +86,7 @@
     "eslint": "^8.39.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
+    "ts-mockito": "^2.6.1",
     "typescript": "^5.0.4",
     "@vscode/test-electron": "^2.3.0"
   }

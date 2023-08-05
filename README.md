@@ -1,5 +1,7 @@
 # Databricks Notebook Runner Extension for Visual Studio Code
 
+[![CI](https://github.com/r3stl355/databricks-notebook-runner/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/r3stl355/databricks-notebook-runner/actions/workflows/main.yml)
+
 The Databricks Notebook Runner Extension for Visual Studio Code allows you to run Databricks notebooks as interactive notebooks in Visual Studio Code.
 
 > 📘 **Notes**:
@@ -14,22 +16,23 @@ The Databricks Notebook Runner Extension for Visual Studio Code allows you to ru
 - Support for hybrid execution - on the local machine or a remote Databricks cluster
 - The following Databricks-specific variables are instantiated through Databricks Connect integration and available by default. They are expected to work in the same way they do when a Databricks notebook is executed on the Databricks Platform:
 
-- `spark`, an instance of `databricks.connect.DatabricksSession`
-- `dbutils`, an instance of Databricks Utilities
+  - `spark`, an instance of `databricks.connect.DatabricksSession`
+  - `dbutils`, an instance of Databricks Utilities
 
 - The following notebook magics are supported:
-- `%frun`: runs a target Python file in the context of the current notebook. It can be any Python file, not necessarily a Databricks notebook only
-- `%fs`: runs `dbutils.fs`
-- `%sh`: runs a given Shell command on the local machine, or in the remote Databricks workspace if the `Remote Shell` cell language is selected
-- `%md`: parses and displays the cell content as Markdown
-- `%sql`: runs the cell content as an SQL statement using `spark.sql`
-- `%pip`: runs `pip` command on the local machine
+  - `%frun`: runs a target Python file in the context of the current notebook. It can be any Python file, not necessarily a Databricks notebook only
+  - `%fs`: runs `dbutils.fs`
+  - `%sh`: runs a given Shell command on the local machine, or in the remote Databricks workspace if the `Remote Shell` cell language is selected
+  - `%md`: parses and displays the cell content as Markdown
+  - `%sql`: runs the cell content as an SQL statement using `spark.sql`
+  - `%pip`: runs `pip` command on the local machine
 
 ## Limitations
 
 - The `%run` and `%fs` magics are expected to be single-line with only one of them per cell
 - Any magic which is not listed in the Features section (e.g. `%scala` magic) is not supported and will be treated as Text
 - Databricks notebooks are Python files with `.py` file extension (with some special comments to provide additional structure), which means that the Extension will attempt to parse any Python file. If the file is not a valid Databricks Notebook then it will be parsed as a notebook with a single cell. To use a default VSCode parser for those files you may need to disable the Databricks Notebook Runner Extension.
+- The Extension was developed and tested on MacOS. There might be some unexpected surprises on Windows (please create GitHub for any issues)
 
 ## Requirements
 
@@ -88,4 +91,5 @@ The Databricks Notebook Runner Extension for Visual Studio Code allows you to ru
 Significant roadmap features are:
 
 - Support for `%scala` magic
-- Support for various display options (e.g. table, image, HTML, etc)
+- Support for richer display options (e.g. table, image, HTML, etc)
+- Support for UI-based configuration (e.g. select a cluster, etc)

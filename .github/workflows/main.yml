@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  run-tests:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest],
+        node-version: [16.x]
+        vscode-version: [stable]
+
+    uses: ./.github/workflows/tests.yml
+    with:
+      os: ${{ matrix.arch.os }}
+      node-version: ${{ matrix.node-version }}
+      vscode-version: ${{ matrix.vscode-version }}

@@ -79,7 +79,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-wip
-samples
+# Development extras
+.wip
 out
 package-lock.json
