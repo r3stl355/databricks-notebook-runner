@@ -82,4 +82,3 @@ venv.bak/
 # Development extras
 .wip
 out
-package-lock.json
