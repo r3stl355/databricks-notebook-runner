@@ -33,7 +33,7 @@ jobs:
           path: /tmp/vscode-test-databricks
           key: ${{ inputs.vscode-version }}-vscode-test
 
-      - run: nmp install --immutable
+      - run: npm install --immutable
 
       - name: Test
-        run: nmp run test
+        run: npm run test
