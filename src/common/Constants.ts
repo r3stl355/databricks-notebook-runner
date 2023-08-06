@@ -12,6 +12,7 @@ export const magicMap = new Map([
   [Magic.sql, { language: Language.sql, kind: Kind.code }],
   [Magic.run, { language: Language.run, kind: Kind.code }],
   [Magic.sh, { language: Language.sh, kind: Kind.code }],
+  [Magic.pip, { language: Language.sh, kind: Kind.code }],
   [Magic.fs, { language: Language.fs, kind: Kind.code }],
   [Magic.none, { language: Language.python, kind: Kind.code }],
   [Magic.invalid, { language: Language.unknown, kind: Kind.code }],
@@ -24,11 +25,8 @@ export const languageMap = new Map([
   [Language.sh, Magic.sh],
   [Language.remoteSh, Magic.sh],
   [Language.fs, Magic.fs],
-  // [Language.python, Magic.none]
-  // [Language.python, kind: Kind.code }],
-  // [Magic.invalid, { language: Language.unknown, kind: Kind.code }],
 ]);
 
-export const controllerId = "databricks-notebook-controller-id";
-export const notebookType = "databricks-notebook";
-export const controllerLabel = "Databricks Notebook";
+export const controllerId = "db-notebook-controller-id";
+export const notebookType = "db-notebook";
+export const controllerLabel = "Databricks Notebook Controller";

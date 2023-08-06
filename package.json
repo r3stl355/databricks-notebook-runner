@@ -12,7 +12,7 @@
     "Notebooks"
   ],
   "activationEvents": [
-    "onNotebook:databricks-notebook-runner"
+    "onNotebook:db-notebook"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -38,9 +38,9 @@
     ],
     "notebooks": [
       {
-        "id": "databricks-notebook-runner",
-        "type": "databricks-notebook-runner",
-        "displayName": "Databricks Notebook Runner",
+        "id": "db-notebook",
+        "type": "db-notebook",
+        "displayName": "Databricks Notebook",
         "selector": [
           {
             "filenamePattern": "*.py"

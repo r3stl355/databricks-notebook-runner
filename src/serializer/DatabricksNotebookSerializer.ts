@@ -44,14 +44,6 @@ export class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
     return new TextEncoder().encode(c.notebookHeader + "\n" + contents);
   }
 
-  // onDidChangeNotebookDocument(event: vscode.NotebookDocumentChangeEvent) {
-  //   const changes = event.contentChanges
-  //     .filter((v) => v.addedCells?.length > 0)
-  //     .map((v) => v.addedCells)
-  //     .flatMap((v) => v)
-  //     .map((v) => v.metadata.languageId);
-  // }
-
   private parseNotebook(contents: string): RawNotebookCell[] {
     if (contents.startsWith(c.notebookHeader)) {
       const headerPattern = new RegExp(c.notebookHeader, "g");
@@ -66,9 +58,6 @@ export class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
 
   private parseCell(contents: string): RawNotebookCell {
     let res = u.parseCellText(contents);
-    // if (res.magic === Magic.invalid) {
-    //   vscode.window.showErrorMessage(`Magic ${res.magic} not supported`);
-    // }
     if (res.kind === Kind.markdown) {
       // Remove `%md` from the markdown cell, anything before the `%md` row is irrelevant
       res.value = res.value
@@ -97,10 +86,6 @@ export class DatabricksNotebookSerializer implements vscode.NotebookSerializer {
         cellText = `%${Magic.md}\n${cellText}`;
       }
     }
-    // } if (cell.kind === vscode.NotebookCellKind.Markup) {
-    //   // Because we are not using the magic in Markdown cells, handle them separately
-    //   res = `${mdMagicHeader}\n${res}`;
-    // }
     const split = cellText.split(/\n/gm);
     let res = `${c.magicHeader} ${split.join(`\n${c.magicHeader} `)}`;
     return res;

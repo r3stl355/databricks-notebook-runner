@@ -25,6 +25,7 @@ export enum Magic {
   run = "run",
   sql = "sql",
   fs = "fs",
+  pip = "pip",
 }
 
 export interface RawNotebookCell {

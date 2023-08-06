@@ -16,7 +16,7 @@ import {
 import { Language, Magic } from "../common/Types";
 import * as u from "../common/Utils";
 
-export const pythonReplName = "Databricks Notebook (Python)";
+export const pythonReplName = "Databricks Notebook Runner (Python)";
 
 const pythonReplInitCommand = (logDir: string, commandOutputFile: string) => `
 from importlib import reload
@@ -64,9 +64,6 @@ lang = Language.python
 `;
 
 export class Controller {
-  // readonly controllerId = "databricks-notebook-controller-id";
-  // readonly notebookType = "databricks-notebook";
-  // readonly label = "Databricks Notebook";
   readonly supportedLanguages = [
     Language.python,
     Language.sql,
@@ -81,7 +78,7 @@ export class Controller {
   private commandOutputFile: string;
   private pythonRepl: any;
   private initialised: boolean = false;
-  private _executionOrder = 0;
+  private executionOrder = 0;
   private interrupted = false;
 
   constructor(notebookController: NotebookController) {
@@ -119,6 +116,10 @@ export class Controller {
     if (this.interrupted) {
       return;
     }
+    if (this.pythonRepl === null) {
+      window.showErrorMessage("Python REPL was closed, reload the extension");
+      return;
+    }
     for (let cell of cells) {
       await this.executeCell(cell);
     }
@@ -130,7 +131,7 @@ export class Controller {
     if (cellText.length === 0) {
       return;
     }
-    // Important design decition - current cell content takes over the cell properties.
+    // Important design decision - current cell content takes over the cell properties.
     // This way the cell type can be changed and enforced via magic strings
     const rawCell = u.parseCellText(cellText, false);
 
@@ -143,7 +144,7 @@ export class Controller {
     ) {
       language = Language.remoteSh;
     }
-    const command = this.prepareCommand(cellText, language);
+    const command = this.prepareCommand(cellText, language, rawCell.magic);
     if (command.length > 0) {
       await this.executeCommand(
         cell,
@@ -159,7 +160,7 @@ export class Controller {
     command: string
   ): Promise<void> {
     const execution = this.controller.createNotebookCellExecution(cell);
-    execution.executionOrder = ++this._executionOrder;
+    execution.executionOrder = ++this.executionOrder;
     execution.start(Date.now());
 
     let cmdId = u.randomName();
@@ -206,13 +207,19 @@ export class Controller {
     execution.end(true, Date.now());
   }
 
-  private prepareCommand(cellText: string, language: Language): string {
+  private prepareCommand(
+    cellText: string,
+    language: Language,
+    magic: Magic
+  ): string {
     if (language === Language.sql) {
       return this.prepareSqlCommand(cellText);
     } else if (language === Language.run) {
       return this.prepareRunCommand(cellText);
     } else if (language === Language.sh) {
-      return this.prepareShCommand(cellText);
+      return magic === Magic.pip
+        ? this.preparePipCommand(cellText)
+        : this.prepareShCommand(cellText);
     } else if (language === Language.remoteSh) {
       return this.prepareRemoteShCommand(cellText);
     } else if (language === Language.fs) {
@@ -234,15 +241,27 @@ export class Controller {
   }
 
   private prepareShCommand(cellText: string): string {
-    return this.splitStripEmpty(cellText.replace("%sh", ""))
+    return this.splitStripEmpty(cellText.replace(`%sh`, ""))
       .map(
         (v) =>
-          `subprocess.run(['${v.replace(
-            " ",
-            "','"
-          )}'], capture_output=True).stdout.decode()`
+          `subprocess.run(['${v
+            .split(" ")
+            .filter((v1) => v1.length > 0)
+            .join("', '")}'], capture_output=True).stdout.decode()`
       )
       .join("\n");
+  }
+
+  private preparePipCommand(cellText: string): string {
+    // Expect only a single line
+    const cmd = this.splitStripEmpty(cellText.replace("%pip", ""))[0].trim();
+    if (cmd.length === 0) {
+      return "";
+    }
+    return `subprocess.run(['pip', '${cmd
+      .split(" ")
+      .filter((v) => v.length > 0)
+      .join("', '")}'], capture_output=True).stdout.decode()`;
   }
 
   private prepareRemoteShCommand(cellText: string): string {
@@ -252,10 +271,10 @@ export class Controller {
     let subCmd = this.splitStripEmpty(cellText.replace("%sh", ""))
       .map(
         (v) =>
-          `import subprocess\\nsubprocess.run(['${v.replace(
-            " ",
-            "','"
-          )}'], capture_output=True).stdout.decode()`
+          `import subprocess\\nsubprocess.run(['${v
+            .split(" ")
+            .filter((v1) => v1.length > 0)
+            .join("', '")}'], capture_output=True).stdout.decode()`
       )
       .map(
         (v) =>

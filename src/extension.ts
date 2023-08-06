@@ -1,5 +1,3 @@
-import * as path from "path";
-import { tmpdir } from "os";
 import { notebooks, workspace, ExtensionContext, window } from "vscode";
 import { DatabricksNotebookSerializer } from "./serializer/DatabricksNotebookSerializer";
 import { Controller, pythonReplName } from "./controller/Controller";
@@ -9,7 +7,7 @@ export function activate(context: ExtensionContext) {
   // Serializer
   const serializer = new DatabricksNotebookSerializer();
   context.subscriptions.push(
-    workspace.registerNotebookSerializer("databricks-notebook", serializer)
+    workspace.registerNotebookSerializer("db-notebook", serializer)
   );
 
   // Controller

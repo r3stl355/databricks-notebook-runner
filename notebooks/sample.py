@@ -8,11 +8,34 @@ print("A sample Databricks Notebook")
 
 # COMMAND ----------
 
+import pyjokes
+pyjokes.get_joke()
+
+# COMMAND ----------
+
+# MAGIC %pip install pyjokes
+
+# COMMAND ----------
+
+import pyjokes
+pyjokes.get_joke()
+
+# COMMAND ----------
+
+# MAGIC %sh pyjoke
+
+# COMMAND ----------
+
 # MAGIC %run ./setup
 
 # COMMAND ----------
 
 print(rows)
+
+# COMMAND ----------
+
+# MAGIC %sh
+# MAGIC pip uninstall -y pyjokes
 
 # COMMAND ----------
 
