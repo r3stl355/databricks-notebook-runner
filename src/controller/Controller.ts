@@ -60,7 +60,7 @@ sys.stdout = logger
 sys.stderr = logger
 
 w = WorkspaceClient()
-lang = Language.python
+lang = Language.PYTHON
 `;
 
 export class Controller {
@@ -332,11 +332,13 @@ export class Controller {
 
     const terminalOptions = {
       name: replName,
-      hideFromUser: true,
+      hideFromUser: showTerminal,
     };
 
     let terminal = window.createTerminal(terminalOptions);
-    terminal.show(showTerminal);
+    if (showTerminal) {
+      terminal.show(true);
+    }
 
     if (envCommand && u.isString(envCommand)) {
       terminal.sendText(envCommand);

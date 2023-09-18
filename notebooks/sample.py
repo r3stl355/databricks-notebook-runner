@@ -77,6 +77,10 @@ df.show(5)
 
 # COMMAND ----------
 
+rows
+
+# COMMAND ----------
+
 df = spark.createDataFrame(rows)
 
 # COMMAND ----------

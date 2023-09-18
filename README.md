@@ -49,7 +49,7 @@ The Databricks Notebook Runner Extension for Visual Studio Code allows you to ru
 - Install and configure Databricks Connect as described in [Databricks Connect reference](https://docs.databricks.com/en/dev-tools/databricks-connect-ref.html). There are a few ways to configure Databricks Connect, see [An example of configuring Databricks Connect](#an-example-of-configuring-databricks-connect) section down below for a complete example.
 - In Visual Studio Code, search for `Databricks Notebook Runner` via the `Search Extensions in Marketplace` (accessible through the `Extensions` button in the main `Activity` panel) and install the extension.
 - Open the folder containing Databricks notebooks. A pair of sample notebooks are included in this repository under `notebooks`
-- Configure the Extension. Add the following settings<sup>\*</sup> to Visual Studio Code (or just configure your environment to match the default values). For more information see [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settingsjson):
+- Configure the Extension. Add the following settings<sup>\*</sup> to Visual Studio Code (or just configure your environment to match the default values). For more information see [Extension settings](https://code.visualstudio.com/docs/getstarted/settings#_extension-settings):
 
 | Setting                                 | Description                                                                           | Default Value                                                                                                                                                                                                                                                                                 |
 | :-------------------------------------- | :------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -118,6 +118,12 @@ pip install --upgrade "databricks-connect==13.2pip install --upgrade "databricks
   ```python
   spark.range(10).show()
   ```
+
+## Troubleshooting
+
+1. If you encounter a problem with the extension, or see a notification suggesting to reload the extension, open a Command Palette (e.g. `Shift`+`Command`+`P` on MacOS) and search for `Reload Window`.
+   > **Note:** this will start a new session which means that the existing context will be cleared so you may have to re-run some of the previously executed cells.
+2. To see what is happening in the REPL, set `dbNotebook.showPythonRepl` to `true` in the Settings. REPL output is sent to a temporary file so you'll also need to locate that file and inspect the contents to see the full output.
 
 ## Roadmap
 
