@@ -144,14 +144,18 @@ export class Controller {
     ) {
       language = Language.remoteSh;
     }
-    const command = this.prepareCommand(cellText, language, rawCell.magic);
-    if (command.length > 0) {
-      await this.executeCommand(
-        cell,
-        u.enumFromString(Language, language)!,
-        command
-      );
+
+    // Ignore non-supported languages
+    if (this.supportedLanguages.includes(language)) {
+      const command = this.prepareCommand(cellText, language, rawCell.magic);
+      if (command.length > 0) {
+        await this.executeCommand(
+          cell,
+          u.enumFromString(Language, language)!,
+          command
+        );
     }
+  }
   }
 
   private async executeCommand(

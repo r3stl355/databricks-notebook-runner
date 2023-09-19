@@ -2,9 +2,10 @@
   "name": "databricks-notebook-runner",
   "displayName": "Databricks Notebook Runner",
   "description": "Run Databricks notebooks in Visual Studio Code",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "r3stl355",
   "repository": "https://github.com/r3stl355/databricks-notebook-runner.git",
+  "icon": "images/legs.png",
   "engines": {
     "vscode": "^1.78.0"
   },
@@ -61,7 +62,7 @@
           "dbNotebook.showPythonRepl": {
             "type": "boolean",
             "description": "Show/hide the Python REPL",
-            "default": false
+            "default": true
           }
         }
       }
