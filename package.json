@@ -62,7 +62,7 @@
           "dbNotebook.showPythonRepl": {
             "type": "boolean",
             "description": "Show/hide the Python REPL",
-            "default": true
+            "default": false
           }
         }
       }
